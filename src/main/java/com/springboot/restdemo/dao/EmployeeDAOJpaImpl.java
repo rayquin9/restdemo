@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import com.springboot.restdemo.entity.Employee;
 
-@Repository
+//@Repository
 public class EmployeeDAOJpaImpl implements EmployeeDAO {
 
     private EntityManager entityManager;

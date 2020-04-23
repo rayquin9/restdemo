@@ -48,7 +48,7 @@ public class EmployeeRestControllerTest {
     }
     
     @Test
-    @DisplayName("Custom test name containing spaces")
+    @DisplayName("Find All the employess")
     void testFindAll() throws Exception {
         List<Employee> employees = new ArrayList<Employee>();
         employees.add(new Employee("Ned", "Flanders", "nflanders@flanders.com"));
