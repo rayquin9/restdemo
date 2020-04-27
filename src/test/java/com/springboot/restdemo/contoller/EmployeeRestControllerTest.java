@@ -1,26 +1,28 @@
 package com.springboot.restdemo.contoller;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -33,65 +35,78 @@ import com.springboot.restdemo.entity.Employee;
 import com.springboot.restdemo.rest.EmployeeRestController;
 import com.springboot.restdemo.service.EmployeeService;
 
-@SpringBootTest
 @AutoConfigureMockMvc
+@ExtendWith(SpringExtension.class)
+@TestPropertySource(locations = "classpath:test.properties")
 public class EmployeeRestControllerTest {
 
-	private MockMvc mockMvc;
+    private static final String API_EMPLOYEES = "/api/employees";
+    private static final String APPLICATION_JSON = "application/json";
 
-	@Mock
-	private EmployeeService employeeService;
+    @Value("${test.firstName}")
+    private String firstName;
 
-	@InjectMocks
-	private EmployeeRestController employeeRestController;
+    @Value("${test.lastName}")
+    private String lastName;
 
-	@BeforeEach
-	public void init() {
-		MockitoAnnotations.initMocks(this);
-		mockMvc = MockMvcBuilders.standaloneSetup(employeeRestController).build();
-	}
+    @Value("${test.email}")
+    private String email;
 
-	@Test
-	@DisplayName("Find All the employees")
-	void testFindAll() throws Exception {
-		List<Employee> employees = new ArrayList<Employee>();
-		employees.add(new Employee("Ned", "Flanders", "nflanders@flanders.com"));
-		Mockito.when(employeeService.findAll()).thenReturn(employees);
+    @Mock
+    private EmployeeService employeeService;
 
-		MvcResult mvcResult = this.mockMvc.perform(MockMvcRequestBuilders.get("/api/employees"))
-				.andDo(MockMvcResultHandlers.print()).andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.content().contentType("application/json;"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.[0].firstName").value("Ned")).andReturn();
-	}
+    @InjectMocks
+    private EmployeeRestController employeeRestController;
 
-	@Test
-	void testAddEmployee() throws Exception {
-		Employee e = new Employee("Ned", "Flanders", "nflanders@flanders.com");
-		e.setId(0);
-		
-		Mockito.doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) {
-				Object[] args = invocation.getArguments();
-				assertTrue(args[0] instanceof Employee);
-				assertNotNull(args[0]);
-				Employee received = (Employee) args[0];
-				MatcherAssert.assertThat(received.getEmail(), Matchers.is(Matchers.equalTo(e.getEmail())));
-				return null;
-			}
-		}).when(employeeService).save(Mockito.any(Employee.class));
+    private Employee testEmployee;
+    private MockMvc mockMvc;
 
-//		String newEmployeeString = "{" + "\"id\": 7," + "\"firstName\": \"Ned\"," + "\"lastName\": \"Flanders\","
-//				+ "\"email\": \"nflaners@flaners.com\"" + "}";
+    @BeforeEach
+    public void init() {
+        MockitoAnnotations.initMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(employeeRestController).build();
 
-		String emString = new ObjectMapper().writeValueAsString(e);
-		MvcResult mvcResult = this.mockMvc
-				.perform(MockMvcRequestBuilders.post("/api/employees").contentType("application/json;")
-						.content(emString))
-				.andDo(MockMvcResultHandlers.print()).andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.content().contentType("application/json;"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.firstName").value("Ned")).andReturn();
+        testEmployee = new Employee(firstName, lastName, email);
+    }
 
-		Mockito.verify(employeeService, Mockito.times(1)).save(Mockito.any(Employee.class));
-	}
+    @Test
+    @DisplayName("Find All the employees")
+    void testFindAll() throws Exception {
+        List<Employee> employees = new ArrayList<Employee>();
+        employees.add(testEmployee);
+        Mockito.when(employeeService.findAll()).thenReturn(employees);
+
+        MvcResult mvcResult = this.mockMvc.perform(MockMvcRequestBuilders.get(API_EMPLOYEES))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().contentType(APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.[0].firstName").value(firstName)).andReturn();
+    }
+
+    @Test
+    void testAddEmployee() throws Exception {
+        testEmployee.setId(0);
+
+        Mockito.doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) {
+                Object[] args = invocation.getArguments();
+                assertTrue(args[0] instanceof Employee);
+                assertNotNull(args[0]);
+                Employee received = (Employee) args[0];
+                assertThat(received.getEmail(), is(equalTo(testEmployee.getEmail())));
+                return null;
+            }
+        }).when(employeeService).save(Mockito.any(Employee.class));
+
+        String emString = new ObjectMapper().writeValueAsString(testEmployee);
+        MvcResult mvcResult = this.mockMvc
+                .perform(MockMvcRequestBuilders.post(API_EMPLOYEES).contentType(APPLICATION_JSON).content(emString))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().contentType(APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.firstName").value(firstName)).andReturn();
+
+        Mockito.verify(employeeService, Mockito.times(1)).save(Mockito.any(Employee.class));
+    }
 }
